@@ -37,6 +37,7 @@ Worker runs local. Test these:
 ## Deploy
 
 ```bash
+npx wrangler secret put DATABASE_URL
 npm run deploy
 ```
 
