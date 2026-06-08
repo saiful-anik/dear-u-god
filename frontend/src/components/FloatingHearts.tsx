@@ -9,7 +9,7 @@ const hearts = Array.from({ length: 6 }, (_, i) => ({
 }));
 
 const FloatingHearts = () => (
-  <div className="pointer-events-none fixed inset-0 overflow-hidden z-0">
+  <div className="pointer-events-none fixed inset-0 z-0 overflow-hidden">
     {hearts.map((h) => (
       <motion.div
         key={h.id}
@@ -18,7 +18,7 @@ const FloatingHearts = () => (
         animate={{ y: [0, -800], opacity: [0.7, 0] }}
         transition={{ duration: h.duration, delay: h.delay, repeat: Infinity, ease: "easeOut" }}
       >
-        ♥
+        {"\u2665"}
       </motion.div>
     ))}
   </div>

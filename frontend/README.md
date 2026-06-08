@@ -1,76 +1,24 @@
 # Dear U
 
-This project now stores notes in Supabase instead of `localStorage`.
+This frontend talks to the Worker API for creating notes, loading note links, and running health checks.
 
-## 1. Create the Supabase table and policies
+## 1. Configure the API endpoint
 
-Open your Supabase project, go to **SQL Editor**, and run this SQL:
-
-```sql
-create extension if not exists pgcrypto;
-
-create table if not exists public.notes (
-	id uuid primary key default gen_random_uuid(),
-	recipient text not null,
-	sender text not null default 'Someone who cares',
-	message text not null,
-	created_at timestamptz not null default now()
-);
-
-
-alter table public.notes enable row level security;
-
-do $$
-begin
-	if not exists (
-		select 1
-		from pg_policies
-		where schemaname = 'public'
-			and tablename = 'notes'
-			and policyname = 'Allow public insert notes'
-	) then
-		create policy "Allow public insert notes"
-			on public.notes
-			for insert
-			to anon, authenticated
-			with check (true);
-	end if;
-
-	if not exists (
-		select 1
-		from pg_policies
-		where schemaname = 'public'
-			and tablename = 'notes'
-			and policyname = 'Allow public read notes'
-	) then
-		create policy "Allow public read notes"
-			on public.notes
-			for select
-			to anon, authenticated
-			using (true);
-	end if;
-end
-$$;
-```
-
-## 2. Add environment variables
-
-Create a `.env` file in the project root:
+Create a `.env` file in `frontend` or copy from `.env.example`:
 
 ```env
-VITE_SUPABASE_URL=https://YOUR_PROJECT_REF.supabase.co
-VITE_SUPABASE_ANON_KEY=YOUR_SUPABASE_ANON_KEY
+VITE_API_BASE_URL=http://127.0.0.1:8787
 ```
 
-You can find both values in Supabase: **Project Settings -> API**.
+Point it at whatever host is serving the Worker API.
 
-## 3. Install dependencies and run
+## 2. Install dependencies and run
 
 If you use Bun:
 
 ```bash
 bun install
-bun run dev
+bun run dev:frontend
 ```
 
 If you use npm:
@@ -82,6 +30,8 @@ npm run dev
 
 ## Notes
 
-- The app creates notes in `public.notes` and generates links like `/note/<id>`.
-- Anyone with a valid link can read that note (public share behavior).
-- Supabase connectivity test is available at `/health` (for example: `http://localhost:5173/health`).
+- `POST /api/message` creates a new note.
+- `GET /api/message/:id` loads a shared note.
+- `GET /health` checks the API.
+- `GET /health/db` checks database connectivity through the API.
+- The frontend share page remains `/note/<id>`.

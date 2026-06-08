@@ -6,6 +6,7 @@ type Env = {
 };
 
 const registeredEndpoints = [
+  "OPTIONS /*",
   "GET /",
   "GET /health",
   "GET /health/db",
@@ -19,13 +20,30 @@ for (const endpoint of registeredEndpoints) {
   console.log(`[ENDPOINT] ${endpoint}`);
 }
 
-const json = (data: unknown, init?: ResponseInit) =>
-  Response.json(data, {
-    headers: {
-      "content-type": "application/json; charset=utf-8",
-      "allow-origin": "*",
-    },
+const corsHeaders = {
+  "access-control-allow-origin": "*",
+  "access-control-allow-methods": "GET, POST, OPTIONS",
+  "access-control-allow-headers": "content-type",
+};
+
+const json = (data: unknown, init?: ResponseInit) => {
+  const headers = new Headers(init?.headers);
+  headers.set("content-type", "application/json; charset=utf-8");
+
+  for (const [key, value] of Object.entries(corsHeaders)) {
+    headers.set(key, value);
+  }
+
+  return Response.json(data, {
     ...init,
+    headers,
+  });
+};
+
+const preflight = () =>
+  new Response(null, {
+    status: 204,
+    headers: corsHeaders,
   });
 
 const getDatabaseStatus = async (databaseUrl: string) => {
@@ -36,6 +54,10 @@ const getDatabaseStatus = async (databaseUrl: string) => {
 export default {
   async fetch(request: Request, env: Env): Promise<Response> {
     const url = new URL(request.url);
+
+    if (request.method === "OPTIONS") {
+      return preflight();
+    }
 
     if (!env.DATABASE_URL) {
       return json(

@@ -1,5 +1,3 @@
-import { supabase } from "@/lib/supabase";
-
 export interface Note {
   id: string;
   to: string;
@@ -8,69 +6,105 @@ export interface Note {
   createdAt: string;
 }
 
-interface NoteRow {
+interface NoteApiResponse {
   id: string;
-  recipient: string;
-  sender: string;
+  to: string;
+  from: string;
   message: string;
   created_at: string;
 }
 
-function mapRowToNote(row: NoteRow): Note {
+interface ApiSuccess<T> {
+  success: true;
+  data: T;
+}
+
+interface ApiFailure {
+  success: false;
+  error: {
+    code: string;
+    message: string;
+  };
+}
+
+const apiBaseUrl = import.meta.env.VITE_API_BASE_URL?.trim();
+
+if (!apiBaseUrl) {
+  throw new Error("Missing API configuration. Set VITE_API_BASE_URL.");
+}
+
+const normalizedApiBaseUrl = apiBaseUrl.replace(/\/+$/, "");
+
+function getApiUrl(path: string): string {
+  return `${normalizedApiBaseUrl}${path}`;
+}
+
+async function parseApiResponse<T>(response: Response): Promise<T> {
+  let payload: ApiSuccess<T> | ApiFailure | null = null;
+
+  try {
+    payload = (await response.json()) as ApiSuccess<T> | ApiFailure;
+  } catch {
+    throw new Error("The API returned an invalid JSON response.");
+  }
+
+  if (!payload || typeof payload !== "object" || !("success" in payload)) {
+    throw new Error("The API returned an unexpected response.");
+  }
+
+  if (!response.ok || !payload.success) {
+    throw new Error(payload.success ? "Request failed." : payload.error.message);
+  }
+
+  return payload.data;
+}
+
+function mapApiNoteToNote(note: NoteApiResponse): Note {
   return {
-    id: row.id,
-    to: row.recipient,
-    from: row.sender,
-    message: row.message,
-    createdAt: row.created_at,
+    id: note.id,
+    to: note.to,
+    from: note.from,
+    message: note.message,
+    createdAt: note.created_at,
   };
 }
 
 export async function saveNote(note: Omit<Note, "id" | "createdAt">): Promise<string> {
-  const { data, error } = await supabase
-    .from("notes")
-    .insert({
-      recipient: note.to,
-      sender: note.from,
+  const response = await fetch(getApiUrl("/api/message"), {
+    method: "POST",
+    headers: {
+      "content-type": "application/json",
+    },
+    body: JSON.stringify({
+      to: note.to,
+      from: note.from,
       message: note.message,
-    })
-    .select("id")
-    .single();
+    }),
+  });
 
-  if (error || !data) {
-    throw new Error(error?.message || "Failed to save note.");
-  }
-
+  const data = await parseApiResponse<{ id: string }>(response);
   return data.id;
 }
 
 export async function getNote(id: string): Promise<Note | null> {
-  const { data, error } = await supabase
-    .from("notes")
-    .select("id, recipient, sender, message, created_at")
-    .eq("id", id)
-    .maybeSingle();
+  const response = await fetch(getApiUrl(`/api/message/${encodeURIComponent(id)}`));
 
-  if (error) {
-    throw new Error(error.message);
-  }
-
-  if (!data) {
+  if (response.status === 404) {
     return null;
   }
 
-  return mapRowToNote(data as NoteRow);
+  const data = await parseApiResponse<NoteApiResponse>(response);
+  return mapApiNoteToNote(data);
 }
 
-export async function checkNotesConnection(): Promise<void> {
-  const { error } = await supabase
-    .from("notes")
-    .select("id")
-    .limit(1);
+export async function checkHealth(): Promise<{ status: string }> {
+  const response = await fetch(getApiUrl("/health"));
+  return parseApiResponse<{ status: string }>(response);
+}
 
-  if (error) {
-    throw new Error(error.message);
-  }
+export async function checkDatabaseHealth(): Promise<{ status: string }> {
+  const response = await fetch(getApiUrl("/health/db"));
+  return parseApiResponse<{ status: string }>(response);
 }
 
 export function getShareUrl(id: string): string {
