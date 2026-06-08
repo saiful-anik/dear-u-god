@@ -1,9 +1,14 @@
 {
-  "name": "cloudflare-lightweight-template",
+  "name": "dear-u-api",
   "private": true,
   "type": "module",
+  "workspaces": [
+    "frontend"
+  ],
   "scripts": {
-    "dev": "wrangler dev",
+    "dev": "concurrently \"npm run dev:backend\" \"npm run dev:frontend\"",
+    "dev:backend": "wrangler dev",
+    "dev:frontend": "npm run dev --workspace frontend",
     "deploy": "wrangler deploy",
     "typecheck": "tsc --noEmit"
   },
@@ -11,6 +16,7 @@
     "@neondatabase/serverless": "^1.0.2"
   },
   "devDependencies": {
+    "concurrently": "^9.2.1",
     "typescript": "^6.0.3",
     "wrangler": "^4.97.0"
   }
