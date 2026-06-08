@@ -36,7 +36,7 @@ const Compose = () => {
       setIsSaving(true);
       const id = await saveNote({
         to: to.trim(),
-        from: from.trim() || "Someone who cares",
+        from: from.trim(),
         message: message.trim(),
       });
       setShareUrl(getShareUrl(id));

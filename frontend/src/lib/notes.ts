@@ -33,7 +33,28 @@ if (!apiBaseUrl) {
   throw new Error("Missing API configuration. Set VITE_API_BASE_URL.");
 }
 
-const normalizedApiBaseUrl = apiBaseUrl.replace(/\/+$/, "");
+function normalizeApiBaseUrl(rawValue: string): string {
+  const trimmedValue = rawValue.trim().replace(/\/+$/, "");
+
+  if (/^https?:\/\//i.test(trimmedValue)) {
+    return trimmedValue;
+  }
+
+  if (trimmedValue.startsWith("//")) {
+    return `${window.location.protocol}${trimmedValue}`;
+  }
+
+  if (trimmedValue.startsWith("/")) {
+    return `${window.location.origin}${trimmedValue}`;
+  }
+
+  const isLocalAddress =
+    /^(localhost|127(?:\.\d{1,3}){3}|0\.0\.0\.0|\[::1\])(?::\d+)?(?:\/.*)?$/i.test(trimmedValue);
+
+  return `${isLocalAddress ? "http" : "https"}://${trimmedValue}`;
+}
+
+const normalizedApiBaseUrl = normalizeApiBaseUrl(apiBaseUrl);
 
 function getApiUrl(path: string): string {
   return `${normalizedApiBaseUrl}${path}`;
